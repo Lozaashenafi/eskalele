@@ -46,8 +46,6 @@ npx drizzle-kit push
 
 5. Running the Application
 
-# Development mode (with auto-restart)
-
 ```
 npm run dev
 
