@@ -6,6 +6,8 @@ import {
   mysqlEnum,
   unique,
   int,
+  uniqueIndex,
+  date,
 } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
@@ -27,13 +29,22 @@ export const articles = mysqlTable("articles", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const readLogs = mysqlTable("read_logs", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  articleId: varchar("article_id", { length: 36 }).notNull(),
-  readerId: varchar("reader_id", { length: 36 }),
-  readAt: timestamp("read_at").defaultNow(),
-});
-
+export const readLogs = mysqlTable(
+  "read_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    articleId: varchar("article_id", { length: 36 }).notNull(),
+    reader_identifier: varchar("reader_identifier", { length: 191 }).notNull(),
+    viewDate: date("view_date").notNull(),
+  },
+  (table) => ({
+    uniqueDailyView: uniqueIndex("unique_daily_view").on(
+      table.articleId,
+      table.reader_identifier,
+      table.viewDate,
+    ),
+  }),
+);
 export const dailyAnalytics = mysqlTable(
   "daily_analytics",
   {

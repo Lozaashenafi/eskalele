@@ -8,7 +8,6 @@ import type { AuthRequest } from "../../middlewares/auth.middleware";
 import { z } from "zod";
 import crypto from "crypto";
 
-// User Story 3: Create Article
 export const createArticle = async (req: AuthRequest, res: Response) => {
   try {
     const validatedData = articleSchema.parse(req.body);
@@ -35,7 +34,6 @@ export const createArticle = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// User Story 8: Author Content List (Includes Drafts & Published)
 export const getMyArticles = async (req: AuthRequest, res: Response) => {
   const { page = 1, size = 10 } = req.query;
   const limit = Number(size);
@@ -71,7 +69,6 @@ export const getMyArticles = async (req: AuthRequest, res: Response) => {
   );
 };
 
-// User Story 3: Update Article
 export const updateArticle = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -94,7 +91,6 @@ export const updateArticle = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// User Story 4: Public News Feed
 export const getPublicArticles = async (req: Request, res: Response) => {
   const { page = 1, size = 10, category, author, q } = req.query;
   const limit = Number(size);
@@ -139,34 +135,48 @@ export const getPublicArticles = async (req: Request, res: Response) => {
     total[0].value,
   );
 };
-
-// User Story 5: Read Tracking
 export const getArticleDetail = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
-  const articleId = Array.isArray(id) ? id[0] : id;
-  const [article] = await db
-    .select()
-    .from(articles)
-    .where(and(eq(articles.id, articleId), isNull(articles.deletedAt)));
+  try {
+    const { id } = req.params;
+    const articleId = Array.isArray(id) ? id[0] : id;
 
-  if (!article)
-    return sendResponse(res, 404, "News article no longer available", null, [
-      "Deleted or Not Found",
+    const [article] = await db
+      .select()
+      .from(articles)
+      .where(and(eq(articles.id, articleId), isNull(articles.deletedAt)));
+
+    if (!article) {
+      return sendResponse(res, 404, "News article no longer available", null, [
+        "Deleted or Not Found",
+      ]);
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    // 2. Identify the reader
+    const identity = req.user?.sub || req.ip || "guest";
+
+    db.insert(readLogs)
+      .values({
+        id: crypto.randomUUID(),
+        articleId: article.id,
+        reader_identifier: identity, // FIXED: removed camelCase, used snake_case
+        viewDate: today,
+      })
+      .onDuplicateKeyUpdate({
+        set: { articleId: article.id }, // Correct syntax to "do nothing" on conflict
+      })
+      .catch((err) => console.error("Log failed:", err));
+
+    return sendResponse(res, 200, "Article fetched", article);
+  } catch (error: any) {
+    return sendResponse(res, 500, "Failed to fetch article", null, [
+      error.message,
     ]);
-
-  // Non-blocking log
-  db.insert(readLogs)
-    .values({
-      id: crypto.randomUUID(),
-      articleId: article.id,
-      readerId: req.user?.sub || null,
-    })
-    .catch((err) => console.error("Log failed", err));
-
-  return sendResponse(res, 200, "Article fetched", article);
+  }
 };
 
-// User Story 3: Soft Delete
 export const softDeleteArticle = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const articleId = Array.isArray(id) ? id[0] : id;

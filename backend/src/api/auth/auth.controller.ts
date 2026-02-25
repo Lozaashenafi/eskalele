@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import { signupSchema, loginSchema } from "./auth.schema";
 import { sendResponse } from "../../utils/response";
 import crypto from "crypto";
-import { z } from "zod"; // Make sure to import z
+import { z } from "zod";
 
 export const signup = async (req: Request, res: Response) => {
   try {
